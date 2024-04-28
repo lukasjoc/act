@@ -1,0 +1,7 @@
+#!/bin/sh
+
+set -ex
+
+rm -rf *_string.go
+go generate -x ./...
+go install

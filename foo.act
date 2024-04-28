@@ -1,14 +1,13 @@
 # foo can handle ADD,SUB and MULT messages others will be ignored
 actor foo 0 =
-  ADD  n { $. + n },
-  SUB  n { $. - n },
-  MULT n { $. - n }.
+  ADD  n {+ n},
+  SUB  n {- n},
+  MULT n {* n};
 
-show foo # output should be 0
+show foo; # output should be 0
 
-foo <- ADD 1
-show foo # output should be 1
+foo <- ADD 1;
+show foo; # output should be 1
 
-foo <- SUB 1
-show foo # output should be 0 again
-
+foo <- SUB 1;
+show foo; # output should be 0 again
