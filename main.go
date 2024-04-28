@@ -103,7 +103,8 @@ func eatWhile(r *bufio.Reader, pred func(b byte) bool) ([]byte, error) {
 type tokenType int
 
 const (
-	tokenTypeKeyword tokenType = iota
+	tokenTypeKeywordActor tokenType = iota
+	tokenTypeKeywordShow
 	tokenTypeIdent
 	tokenTypeLit
 	tokenTypeOp
@@ -189,11 +190,111 @@ func tokenize(r *bufio.Reader) ([]*token, error) {
 	}
 	//clean up
 	for _, token := range tokens {
-		if token.typ == tokenTypeIdent && token.value == "actor" || token.value == "show" {
-			token.typ = tokenTypeKeyword
+		if token.typ == tokenTypeIdent && token.value == "actor" {
+			token.typ = tokenTypeKeywordActor
+		}
+		if token.typ == tokenTypeIdent && token.value == "show" {
+			token.typ = tokenTypeKeywordShow
 		}
 	}
 	return tokens, nil
+}
+
+// actor keyword, ident, literal start, = symbol,
+// list of (message name, ?operands args, { operator  operand name } )
+// actor definition
+
+// show keyword, ident, semi
+// show statement
+
+// ident, <- symbol, message, operands?, semi
+// send statement
+
+type actStatementActionBody struct {
+	lhs *token
+	rhs *token
+}
+type actStatementAction struct {
+	ident *token
+	arg   *token
+	body  actStatementActionBody
+}
+
+type actStatementActor struct {
+	ident   *token
+	state   *token
+	actions []*actStatementAction
+}
+
+type actStatementSend struct {
+	actorIdent *token
+	message    *token
+	op         *token
+}
+
+type actStatementShow struct{ actorIdent *token }
+
+// TODO: fix this later (maybe)
+type act struct{ items []any }
+
+func parse(r *bufio.Reader) (*act, error) {
+	a := act{items: []any{}}
+	tokens, err := tokenize(r)
+	if err != nil {
+		return nil, err
+	}
+	eatToken := func(tokens []*token, index *int) *token {
+		prev := tokens[*index]
+		*index++
+		return prev
+	}
+
+	// TODO: cleanup to use tokenstream
+	// TODO: this must be the most horrible code 've ever written (this month)
+	index := 0
+	for index < len(tokens) {
+		token := tokens[index]
+		if token.typ == tokenTypeKeywordActor {
+			_ = eatToken(tokens, &index) // skip 'actor' keyword
+			ident := eatToken(tokens, &index)
+			state := eatToken(tokens, &index)
+			_ = eatToken(tokens, &index) // skip 'assign'
+			actions := []*actStatementAction{}
+			for tokens[index].value != ";" {
+				ident := eatToken(tokens, &index)
+				arg := eatToken(tokens, &index)
+				_ = eatToken(tokens, &index) // skip 'paren'
+				lhs := eatToken(tokens, &index)
+				rhs := eatToken(tokens, &index)
+				_ = eatToken(tokens, &index) // skip 'paren'
+				if tokens[index].value != ";" {
+					_ = eatToken(tokens, &index) // skip 'comma' if not 'semi'
+				}
+				action := &actStatementAction{ident, arg, actStatementActionBody{lhs, rhs}}
+				actions = append(actions, action)
+			}
+			_ = eatToken(tokens, &index) // skip 'semi'
+			item := actStatementActor{ident, state, actions}
+			a.items = append(a.items, item)
+		} else if token.typ == tokenTypeKeywordShow {
+			_ = eatToken(tokens, &index) // skip 'show' keyword
+			actorIdent := eatToken(tokens, &index)
+			_ = eatToken(tokens, &index) // skip 'semi'
+			item := actStatementShow{actorIdent}
+			a.items = append(a.items, item)
+		} else if token.typ == tokenTypeIdent {
+			actorIdent := eatToken(tokens, &index)
+			_ = eatToken(tokens, &index) // skip 'send symbol'
+			message := eatToken(tokens, &index)
+			op := eatToken(tokens, &index)
+			_ = eatToken(tokens, &index) // skip 'semi'
+			item := actStatementSend{actorIdent, message, op}
+			a.items = append(a.items, item)
+		} else {
+			panic(fmt.Sprintf("token `%s` at index `%d/%d` not supported yet", token, index, len(tokens)))
+		}
+	}
+	return &a, nil
 }
 
 func main() {
@@ -206,11 +307,11 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	tokens, err := tokenize(bufio.NewReader(f))
+	act, err := parse(bufio.NewReader(f))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: Could not parse file: %v\n", err)
 	}
-	for _, token := range tokens {
-		fmt.Println(token)
+	for _, item := range (*act).items {
+		fmt.Println(item)
 	}
 }
