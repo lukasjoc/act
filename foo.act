@@ -1,5 +1,8 @@
+# DOUBLE {* @ 2};
 # foo can handle ADD,SUB and MULT messages others will be ignored
-actor foo 0 =
+actor foo 0 = ADD n {+ n};
+
+actor fof 0 =
   ADD  n {+ n},
   SUB  n {- n},
   MULT n {* n};
@@ -15,20 +18,3 @@ foo <- SUB 1;
 # foo <- DOUBLE;
 
 show foo; # output should be 0 again
-
-foo <- ADD 2;
-
-# OUTPUT OF THE CURRENT RUNTIME ENV
-# [ACTOR] TokenTypeIdent(`foo`) TokenTypeLit(`0`)
-#   [ACTION] &{TokenTypeIdent(`ADD`) TokenTypeIdent(`n`) {TokenTypeOp(`+`) TokenTypeIdent(`n`)}}
-#   [ACTION] &{TokenTypeIdent(`SUB`) TokenTypeIdent(`n`) {TokenTypeOp(`-`) TokenTypeIdent(`n`)}}
-#   [ACTION] &{TokenTypeIdent(`MULT`) TokenTypeIdent(`n`) {TokenTypeOp(`*`) TokenTypeIdent(`n`)}}
-# [SHOW] TokenTypeIdent(`foo`)
-# [SEND] TokenTypeIdent(`foo`) TokenTypeIdent(`ADD`) TokenTypeLit(`1`)
-# [SHOW] TokenTypeIdent(`foo`)
-# [SEND] TokenTypeIdent(`foo`) TokenTypeIdent(`SUB`) TokenTypeLit(`1`)
-# [SHOW] TokenTypeIdent(`foo`)
-# RUNTIME DUMP map[foo:0xc000028220]
-# ACTOR STATE 0
-# ACTOR STATE 1
-# ACTOR STATE 0

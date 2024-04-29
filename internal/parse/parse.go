@@ -105,7 +105,7 @@ func New(r *bufio.Reader) (*Module, error) {
 			item := SendStmt{actorIdent, message, op}
 			module.Items = append(module.Items, item)
 		} else {
-			panic(fmt.Sprintf("token `%s` at index `%d/%d` not supported yet", tok, at, len(toks)))
+			panic(fmt.Sprintf("next token `%s` at index %d/%d` not allowed", tok, at, len(toks)))
 		}
 	}
 	return &module, nil

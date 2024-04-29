@@ -42,8 +42,15 @@ func (e *Env) Exec() error {
 					}
 				})
 			}
+			// fmt.Println(s.Ident.Value, e.actors)
+			if _, defined := e.actors[s.Ident.Value]; defined {
+				return fmt.Errorf("actor with name `%s` is already defined", s.Ident.Value)
+			}
 			e.actors[s.Ident.Value] = actor
-			fmt.Println("RUNTIME DUMP", e.actors)
+			fmt.Printf("NEW ACTOR: %v [%v %v]\n", s.Ident.Value, actor.state, actor.actions)
+			// for n, a := range e.actors {
+			// 	fmt.Printf("RUNTIME DUMP: ACTION %v [%v %v]\n", n, a.state, a.actions)
+			// }
 		case parse.ModuleItemShow:
 			s := item.(parse.ShowStmt)
 			id := s.ActorIdent.Value
@@ -63,7 +70,9 @@ func (e *Env) Exec() error {
 			if err != nil {
 				return err
 			}
-			a.Recv(MessageId(s.Message.Value), &op)
+			if err := a.Recv(MessageId(s.Message.Value), &op); err != nil {
+				return err
+			}
 		default:
 			panic(fmt.Sprintf("item `%v` is not supported yet", item.Type()))
 		}
