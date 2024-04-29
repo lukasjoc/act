@@ -6,7 +6,27 @@ import (
 	"os"
 
 	"github.com/lukasjoc/act/internal/parse"
+	"github.com/lukasjoc/act/internal/runtime"
 )
+
+func debugPrintItems(module *parse.Module) {
+	for _, item := range (*module).Items {
+		switch item.Type() {
+		case parse.ModuleItemActor:
+			s := item.(parse.ActorStmt)
+			fmt.Printf("[ACTOR] %v %v\n", s.Ident, s.State)
+			for _, action := range s.Actions {
+				fmt.Printf("  [ACTION] %v\n", action)
+			}
+		case parse.ModuleItemSend:
+			s := item.(parse.SendStmt)
+			fmt.Printf("[SEND] %v %v %v\n", s.ActorIdent, s.Message, s.Op)
+		case parse.ModuleItemShow:
+			s := item.(parse.ShowStmt)
+			fmt.Printf("[SHOW] %v\n", s.ActorIdent)
+		}
+	}
+}
 
 func main() {
 	// !TODO: better filepath validation of input
@@ -21,17 +41,13 @@ func main() {
 	module, err := parse.New(bufio.NewReader(f))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: Could not parse file: %v\n", err)
+		os.Exit(1)
 	}
-	for _, item := range (*module).Items {
-		switch item.Type() {
-		case parse.ModuleItemActor:
-			fmt.Println("[STMT ACTOR]: ", item.(parse.ActorStmt).Ident)
-		case parse.ModuleItemSend:
-			fmt.Println("[STMT SEND]: ", item.(parse.SendStmt).ActorIdent)
-		case parse.ModuleItemShow:
-			fmt.Println("[STMT SHOW]: ", item.(parse.ShowStmt).ActorIdent)
-		default:
-			panic("we cant print that type yet")
-		}
+	debugPrintItems(module)
+
+	env := runtime.New(module)
+	if err := env.Exec(); err != nil {
+		fmt.Fprintf(os.Stderr, "[ERROR RUNTIME]: %v\n", err)
+		os.Exit(1)
 	}
 }
