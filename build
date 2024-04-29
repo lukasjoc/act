@@ -1,7 +1,7 @@
-#!/bin/sh
+#!/bin/bash
 
 set -ex
 
-rm -rf *_string.go
+rm -rf internal/**/*_string.go
 go generate -x ./...
 go install

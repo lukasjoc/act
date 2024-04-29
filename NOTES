@@ -1,0 +1,47 @@
+// const (
+// 	MessageIdAdd messageId = iota
+// 	MessageIdSub
+// 	MessageIdMult
+// )
+
+// func main() {
+// 	foo := actor{0, map[messageId]actionFunc{}}
+// 	foo.with(messageIdAdd, func(a *actor, id messageId, op *int) {
+// 		if a == nil || op == nil {
+// 			return
+// 		}
+// 		(*a).state += *op
+// 	})
+// 	foo.with(messageIdSub, func(a *actor, id messageId, op *int) {
+// 		if a == nil || op == nil {
+// 			return
+// 		}
+// 		(*a).state -= *op
+// 	})
+// 	foo.with(messageIdMult, func(a *actor, id messageId, op *int) {
+// 		if a == nil || op == nil {
+// 			return
+// 		}
+// 		(*a).state *= *op
+// 	})
+//
+// 	foo.show()
+//
+// 	op := 1
+// 	foo.recv(messageIdAdd, &op)
+// 	foo.show()
+//
+// 	foo.recv(messageIdSub, &op)
+// 	foo.show()
+// }
+
+// actor keyword, ident, literal start, = symbol,
+// list of (message name, ?operands args, { operator  operand name } )
+// actor definition
+
+// show keyword, ident, semi
+// show statement
+
+// ident, <- symbol, message, operands?, semi
+// send statement
+
