@@ -24,14 +24,10 @@ type ModuleItem interface {
 // TODO: fix this later (maybe)
 type Module struct{ Items []ModuleItem }
 
-type actStatementActionBody struct {
-	Left  *lex.Token
-	Right *lex.Token
-}
 type actStatementAction struct {
-	Ident *lex.Token
-	Arg   *lex.Token
-	Body  actStatementActionBody
+	Ident  *lex.Token
+	Params []*lex.Token
+	Body   []*lex.Token
 }
 type ActorStmt struct {
 	Ident   *lex.Token
@@ -44,68 +40,96 @@ func (a ActorStmt) Type() ModuleItemType { return ModuleItemActor }
 type SendStmt struct {
 	ActorIdent *lex.Token
 	Message    *lex.Token
-	Op         *lex.Token
+	Args       []*lex.Token
 }
 
 func (a SendStmt) Type() ModuleItemType { return ModuleItemSend }
 
-type ShowStmt struct{ ActorIdent *lex.Token }
+type ShowStmt struct {
+	ActorIdent *lex.Token
+}
 
 func (a ShowStmt) Type() ModuleItemType { return ModuleItemShow }
 
-// TODO: cleanup to use tokenstream
-// TODO: this must be the most horrible code 've ever written (this month)
+// FIXME: cleanup to use tokenstream
+// FIXME: this must be the most horrible code 've ever written (this month)
+
+func eatToken(tokens *[]*lex.Token, index *int) *lex.Token {
+	prev := (*tokens)[*index]
+	*index++
+	return prev
+}
+
+func eatTokenAs(s string, tokens *[]*lex.Token, index *int) *lex.Token {
+	prev := (*tokens)[*index]
+	v := (*tokens)[*index].Value
+	if v != s {
+		panic(fmt.Errorf("expected `%v` but instead got `%v`", s, v))
+	}
+	*index++
+	return prev
+}
+
+func eatAction(tokens *[]*lex.Token, index *int) *actStatementAction {
+	ident := eatToken(tokens, index)
+	params := []*lex.Token{}
+	for (*tokens)[*index].Value != "{" {
+		param := eatToken(tokens, index)
+		params = append(params, param)
+	}
+	eatTokenAs("{", tokens, index)
+	body := []*lex.Token{}
+	for (*tokens)[*index].Value != "}" {
+		tok := eatToken(tokens, index)
+		body = append(body, tok)
+	}
+	eatTokenAs("}", tokens, index)
+	return &actStatementAction{ident, params, body}
+}
 func New(r *bufio.Reader) (*Module, error) {
-	toks, err := lex.New(r)
+	tokens, err := lex.New(r)
 	if err != nil {
 		return nil, err
 	}
-	eatTok := func(tokens []*lex.Token, index *int) *lex.Token {
-		prev := tokens[*index]
-		*index++
-		return prev
-	}
 	module := Module{Items: []ModuleItem{}}
-	for at := 0; at < len(toks); {
-		tok := toks[at]
-		if tok.Typ == lex.TokenTypeKeywordActor {
-			_ = eatTok(toks, &at) // skip 'actor' keyword
-			ident := eatTok(toks, &at)
-			state := eatTok(toks, &at)
-			_ = eatTok(toks, &at) // skip 'assign'
+	for index := 0; index < len(tokens); {
+		token := tokens[index]
+		if token.Typ == lex.TokenTypeKeywordActor {
+			eatTokenAs("actor", &tokens, &index)
+			ident := eatToken(&tokens, &index)
+			state := eatToken(&tokens, &index)
+			eatTokenAs("=", &tokens, &index)
 			actions := []*actStatementAction{}
-			for toks[at].Value != ";" {
-				ident := eatTok(toks, &at)
-				arg := eatTok(toks, &at)
-				_ = eatTok(toks, &at) // skip 'paren'
-				lhs := eatTok(toks, &at)
-				rhs := eatTok(toks, &at)
-				_ = eatTok(toks, &at) // skip 'paren'
-				if toks[at].Value != ";" {
-					_ = eatTok(toks, &at) // skip 'comma' if not 'semi'
+			for {
+				a := eatAction(&tokens, &index)
+				actions = append(actions, a)
+				if tokens[index].Value != "," {
+					break
 				}
-				action := &actStatementAction{ident, arg, actStatementActionBody{lhs, rhs}}
-				actions = append(actions, action)
+				eatTokenAs(",", &tokens, &index)
 			}
-			_ = eatTok(toks, &at) // skip 'semi'
+			eatTokenAs(";", &tokens, &index)
 			item := ActorStmt{ident, state, actions}
 			module.Items = append(module.Items, item)
-		} else if tok.Typ == lex.TokenTypeKeywordShow {
-			_ = eatTok(toks, &at) // skip 'show' keyword
-			actorIdent := eatTok(toks, &at)
-			_ = eatTok(toks, &at) // skip 'semi'
+		} else if token.Typ == lex.TokenTypeKeywordShow {
+			eatTokenAs("show", &tokens, &index)
+			actorIdent := eatToken(&tokens, &index)
+			eatTokenAs(";", &tokens, &index)
 			item := ShowStmt{actorIdent}
 			module.Items = append(module.Items, item)
-		} else if tok.Typ == lex.TokenTypeIdent {
-			actorIdent := eatTok(toks, &at)
-			_ = eatTok(toks, &at) // skip 'send symbol'
-			message := eatTok(toks, &at)
-			op := eatTok(toks, &at)
-			_ = eatTok(toks, &at) // skip 'semi'
-			item := SendStmt{actorIdent, message, op}
+		} else if token.Typ == lex.TokenTypeIdent {
+			actorIdent := eatToken(&tokens, &index)
+			eatTokenAs("<-", &tokens, &index)
+			message := eatToken(&tokens, &index)
+			params := []*lex.Token{}
+			for tokens[index].Value != ";" {
+				params = append(params, eatToken(&tokens, &index))
+			}
+			eatTokenAs(";", &tokens, &index)
+			item := SendStmt{actorIdent, message, params}
 			module.Items = append(module.Items, item)
 		} else {
-      panic(fmt.Sprintf("PARSE: next token `%s` at index %d/%d` not allowed", tok, at, len(toks)))
+			panic(fmt.Sprintf("PARSE: next token `%s` at index %d/%d` not allowed", token, index, len(tokens)))
 		}
 	}
 	return &module, nil

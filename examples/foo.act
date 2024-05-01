@@ -1,20 +1,11 @@
-# DOUBLE {* @ 2};
-# foo can handle ADD,SUB and MULT messages others will be ignored
-actor foo 0 = ADD n {+ n};
+actor foo 0 =
+  ADD n {n +=},
+  SUB n {n -=};
 
-actor fof 0 =
-  ADD  n {+ n},
-  SUB  n {- n},
-  MULT n {* n};
-  # DOUBLE {* @ 2};
-
-show foo; # output should be 0
+show foo;
 
 foo <- ADD 1;
-show foo; # output should be 1
+show foo;
 
 foo <- SUB 1;
-
-# foo <- DOUBLE;
-
-show foo; # output should be 0 again
+show foo;

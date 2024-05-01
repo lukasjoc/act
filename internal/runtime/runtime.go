@@ -4,20 +4,18 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/lukasjoc/act/internal/lex"
 	"github.com/lukasjoc/act/internal/parse"
 )
 
 type Env struct {
-	Module *parse.Module
-	actors map[string]*Actor
+	module *parse.Module
+	actors map[string]*actor
 }
 
-func New(module *parse.Module) *Env {
-	return &Env{Module: module, actors: map[string]*Actor{}}
-}
-
+func New(module *parse.Module) *Env { return &Env{module, map[string]*actor{}} }
 func (e *Env) Exec() error {
-	for _, item := range (e.Module).Items {
+	for _, item := range (e.module).Items {
 		switch item.Type() {
 		case parse.ModuleItemActor:
 			s := item.(parse.ActorStmt)
@@ -25,33 +23,42 @@ func (e *Env) Exec() error {
 			if err != nil {
 				return err
 			}
-			actor := NewActor(int(state))
+			a := newActor(int(state))
 			for _, action := range s.Actions {
-				id := MessageId(action.Ident.Value)
-				actor.With(id, func(a *Actor, id MessageId, op *int) {
-					if a == nil || op == nil {
+				id := messageId(action.Ident.Value)
+				locals := []string{}
+				for _, t := range action.Params {
+					locals = append(locals, t.Value)
+				}
+				a.With(id, func(a *actor, id messageId, params []int) {
+					if a == nil {
 						return
 					}
-					switch action.Body.Left.Value {
-					case "=":
-						(*a).state = *op
-					case "+":
-						(*a).state += *op
-					case "-":
-						(*a).state -= *op
-					case "*":
-						(*a).state *= *op
-					case "%":
-						(*a).state %= *op
+					if len(action.Params) != len(params) {
+						fmt.Printf("ERROR: message `%s` in actor `%v` requires `%v` args\n",
+							id, s.Ident.Value, len(action.Params))
+						return
 					}
+					for pos, ident := range action.Params {
+						// locals[ident.Value] = params[pos]
+						action.Body[pos].Typ = lex.TokenTypeLit
+						action.Body[pos].Value = strconv.Itoa(params[pos])
+						fmt.Printf("LOCAL: %v=%v\n", ident.Value, params[pos])
+					}
+					ctx := newEvalCtx(action.Body, (*a).state)
+					if err := ctx.eval(); err != nil {
+						fmt.Printf("EVAL ERROR: %v \n", err)
+						return
+					}
+					(*a).state = ctx.state
 				})
 			}
 			// fmt.Println(s.Ident.Value, e.actors)
 			if _, defined := e.actors[s.Ident.Value]; defined {
 				return fmt.Errorf("actor with name `%s` is already defined", s.Ident.Value)
 			}
-			e.actors[s.Ident.Value] = actor
-			fmt.Printf("NEW ACTOR: %v [%v %v]\n", s.Ident.Value, actor.state, actor.actions)
+			e.actors[s.Ident.Value] = a
+			fmt.Printf("NEW ACTOR: %v [%v %v]\n", s.Ident.Value, a.state, a.actions)
 			// for n, a := range e.actors {
 			// 	fmt.Printf("RUNTIME DUMP: ACTION %v [%v %v]\n", n, a.state, a.actions)
 			// }
@@ -70,11 +77,15 @@ func (e *Env) Exec() error {
 			if !defined {
 				return fmt.Errorf("actor with name `%s` not defined yet", id)
 			}
-			op, err := strconv.Atoi(s.Op.Value)
-			if err != nil {
-				return err
+			params := []int{}
+			for _, t := range s.Args {
+				v, err := strconv.Atoi(t.Value)
+				if err != nil {
+					return err
+				}
+				params = append(params, v)
 			}
-			if err := a.Recv(MessageId(s.Message.Value), &op); err != nil {
+			if err := a.Recv(messageId(s.Message.Value), params...); err != nil {
 				return err
 			}
 		default:

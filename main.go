@@ -20,7 +20,7 @@ func debugPrintItems(module *parse.Module) {
 			}
 		case parse.ModuleItemSend:
 			s := item.(parse.SendStmt)
-			fmt.Printf("[SEND] %v %v %v\n", s.ActorIdent, s.Message, s.Op)
+			fmt.Printf("[SEND] %v %v %v\n", s.ActorIdent, s.Message, s.Args)
 		case parse.ModuleItemShow:
 			s := item.(parse.ShowStmt)
 			fmt.Printf("[SHOW] %v\n", s.ActorIdent)

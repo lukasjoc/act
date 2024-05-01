@@ -109,30 +109,15 @@ func New(r *bufio.Reader) ([]*Token, error) {
 			}
 			tokens = append(tokens, &Token{TokenTypeSymbol, string(b)})
 			offset += 1
-		} else if buf[0] == '+' || buf[0] == '-' || buf[0] == '*' || buf[0] == '%' {
-			b, err := r.ReadByte()
-			if err != nil {
-				return tokens, err
-			}
-			tokens = append(tokens, &Token{TokenTypeOp, string(b)})
-			offset += 1
-		} else if buf[0] == '<' {
-			// i know this is shit will clean up later..
-			buf2, err := r.Peek(2)
-			if err != nil {
-				return tokens, err
-			}
-			if buf2[1] != '-' {
-				continue
-			}
-			buf, err = r.ReadBytes('-')
+		} else if buf[0] == '+' || buf[0] == '-' || buf[0] == '*' || buf[0] == '%' || buf[0] == '<' {
+			buf, n, err := eatWhile(r, func(b byte) bool { return b == '+' || b == '-' || b == '*' || b == '%' || b == '<' || b == '=' })
 			if err != nil {
 				return tokens, err
 			}
 			tokens = append(tokens, &Token{TokenTypeOp, string(buf)})
-			offset += 2
+			offset += n
 		} else {
-      panic(fmt.Sprintf("LEX: next token `%s` at offset: %d not allowed", string(buf[0]), offset))
+			panic(fmt.Sprintf("LEX: next token `%s` at offset: %d not allowed", string(buf[0]), offset))
 		}
 	}
 	for _, token := range tokens {

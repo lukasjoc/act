@@ -1,0 +1,9 @@
+actor setter 0 =
+  RESET {0 =},
+  SET f {f =};
+
+setter <- SET 5;
+show setter;
+
+setter <- RESET;
+show setter;

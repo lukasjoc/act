@@ -2,26 +2,26 @@ package runtime
 
 import "fmt"
 
-type MessageId string
+type messageId string
 
-type ActionFunc func(*Actor, MessageId, *int)
+type actionFunc func(*actor, messageId, []int)
 
-type Actor struct {
+type actor struct {
 	state   int
-	actions map[MessageId]ActionFunc
+	actions map[messageId]actionFunc
 }
 
-func NewActor(state int) *Actor {
-	return &Actor{state, map[MessageId]ActionFunc{}}
+func newActor(state int) *actor {
+	return &actor{state, map[messageId]actionFunc{}}
 }
 
-func (a *Actor) With(id MessageId, f ActionFunc) { a.actions[id] = f }
-func (a *Actor) Recv(id MessageId, op *int) error {
+func (a *actor) With(id messageId, f actionFunc) { a.actions[id] = f }
+func (a *actor) Recv(id messageId, params ...int) error {
 	f, exists := a.actions[id]
 	if !exists {
 		return nil
 	}
-	f(a, id, op)
+	f(a, id, params)
 	return nil
 }
-func (a *Actor) Show() { fmt.Printf("ACTOR STATE %v\n", a.state) }
+func (a *actor) Show() { fmt.Printf("ACTOR STATE %v\n", a.state) }
