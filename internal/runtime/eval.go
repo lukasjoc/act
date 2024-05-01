@@ -23,7 +23,10 @@ const (
 	opTypeSubEq
 	opTypeModEq
 	opTypeAssign
+	opTypeMultEq
 	opTypeMod
+	opTypeAdd
+	opTypeMult
 	opTypeInvalid
 )
 
@@ -31,8 +34,11 @@ var ops = map[opType]uint8{
 	opTypeAddEq:  1,
 	opTypeSubEq:  1,
 	opTypeModEq:  1,
+	opTypeMultEq: 1,
 	opTypeAssign: 1,
 	opTypeMod:    2,
+	opTypeAdd:    2,
+	opTypeMult:   2,
 }
 
 // TODO: it would be really cool if stringer could do this
@@ -44,10 +50,16 @@ func opTypeFromStr(opStr string) opType {
 		return opTypeSubEq
 	case "%=":
 		return opTypeModEq
+	case "*=":
+		return opTypeMultEq
 	case "=":
 		return opTypeAssign
 	case "%":
 		return opTypeMod
+	case "+":
+		return opTypeAdd
+	case "*":
+		return opTypeMult
 	}
 	return opTypeInvalid
 }
@@ -82,8 +94,14 @@ func (ctx *evalCtx) applyOp(typ opType, popped []int) error {
 		ctx.state %= popped[0]
 	case opTypeAssign:
 		ctx.state = popped[0]
+	case opTypeMultEq:
+		ctx.state *= popped[0]
 	case opTypeMod:
 		ctx.state = popped[0] % popped[1]
+	case opTypeAdd:
+		ctx.state = popped[0] + popped[1]
+	case opTypeMult:
+		ctx.state = popped[0] * popped[1]
 	}
 	return nil
 }

@@ -1,0 +1,20 @@
+# actor doubler 2 =
+#   DOUBLE n {n *=},
+#   RESET {2 =};
+#
+# show doubler;
+# doubler <- DOUBLE 10;
+# show doubler;
+#
+# doubler <- RESET;
+# doubler <- DOUBLE 10;
+# show doubler;
+
+actor doubler 0 =
+  DOUBLE n {n 2 *};
+
+doubler <- DOUBLE 10; show doubler;
+doubler <- DOUBLE 20; show doubler;
+doubler <- DOUBLE 50; show doubler;
+doubler <- DOUBLE 100; show doubler;
+doubler <- DOUBLE 232; show doubler;
