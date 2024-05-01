@@ -1,0 +1,11 @@
+- create new actors
+- decide what to do on certain messages
+- being able to store remote host addresses
+- benig able to address certain known hosts
+- concurrent operations
+
+- default messages to set value for each actor
+```act
+foobar <- SET 5;
+foobar <- SET 0;
+```

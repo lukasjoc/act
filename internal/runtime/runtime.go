@@ -33,12 +33,16 @@ func (e *Env) Exec() error {
 						return
 					}
 					switch action.Body.Left.Value {
+					case "=":
+						(*a).state = *op
 					case "+":
 						(*a).state += *op
 					case "-":
 						(*a).state -= *op
 					case "*":
 						(*a).state *= *op
+					case "%":
+						(*a).state %= *op
 					}
 				})
 			}
