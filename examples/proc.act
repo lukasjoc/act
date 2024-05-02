@@ -3,6 +3,7 @@ actor counter 0 =
   INC {1 +=};
 
 c = spawn {counter};
+
 # c1 = spawn {counter};
 
-# c << POW 50
+c <- INC;

@@ -3,6 +3,7 @@ package runtime
 import (
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/lukasjoc/act/internal/parse"
 )
@@ -11,12 +12,17 @@ type Env struct {
 	module parse.Module
 	actors map[string]*actor
 	sched  *scheduler
+	// links  map[string]*proc
 }
 
 func New(module parse.Module) *Env {
 	sched := newScheduler()
 	return &Env{module, map[string]*actor{}, sched}
 }
+
+// func (e *Env) Wait() {
+// 	e.sched.wg.Wait()
+// }
 
 func (e *Env) Exec() error {
 	for _, item := range e.module {
@@ -33,18 +39,15 @@ func (e *Env) Exec() error {
 				for _, t := range action.Params {
 					locals = append(locals, t.Value)
 				}
-				a.With(id, func(a *actor, id messageId, params []int) {
-					if a == nil {
-						return
-					}
-					if len(action.Params) != len(params) {
+				a.setAction(id, func(m *message) {
+					if len(action.Params) != len(m.args) {
 						fmt.Printf("ERROR: message `%s` in actor `%v` requires `%v` args\n",
 							id, s.Ident.Value, len(action.Params))
 						return
 					}
 					locals := map[string]int{}
 					for pos, p := range action.Params {
-						locals[p.Value] = params[pos]
+						locals[p.Value] = m.args[pos]
 					}
 					ctx := newEvalCtx(action.Scope, (*a).state, locals)
 					if err := ctx.eval(); err != nil {
@@ -65,44 +68,34 @@ func (e *Env) Exec() error {
 			if !defined {
 				return fmt.Errorf("actor with name `%s` not defined yet", id)
 			}
-			a.Show()
+			a.show()
 		case parse.SendStmt:
-			id := s.ActorIdent.Value
-			a, defined := e.actors[id]
-			if !defined {
-				return fmt.Errorf("actor with name `%s` not defined yet", id)
-			}
-			params := []int{}
+			args := []int{}
 			for _, t := range s.Args {
 				v, err := strconv.Atoi(t.Value)
 				if err != nil {
 					return err
 				}
-				params = append(params, v)
+				args = append(args, v)
 			}
-			mId := messageId(s.Message.Value)
-			if _, ok := a.actions[mId]; !ok {
-				return fmt.Errorf("message `%v` for actor `%v` is not defined", mId, a.addr)
-			}
-			if err := a.Recv(messageId(s.Message.Value), params...); err != nil {
+			p, err := e.sched.proc(s.ActorIdent.Value)
+			if err != nil {
 				return err
 			}
+			time.Sleep(time.Second * 4)
+			fmt.Println("PROC", p.pid)
+			p.recv(&message{s.Message.Value, args})
 		case parse.SpawnStmt:
 			id := s.Scope[0].Value
 			a, defined := e.actors[id]
 			if !defined {
 				return fmt.Errorf("actor with name `%s` not defined yet", id)
 			}
-			p := e.sched.startProc(s.PidIdent.Value, a)
-			for i := 0; i < 10; i++ {
-				p.inbox <- Message{messageId(fmt.Sprintf("foobar-%d", i)), []string{"Hello, World!"}}
-			}
-			// p.errs <- errors.New("you should be dead by now")
+
+			e.sched.startProc(s.PidIdent.Value, a)
 		default:
 			panic(fmt.Sprintf("item `%v` is not supported yet", item))
 		}
-
-		e.sched.wg.Wait()
 	}
 	return nil
 }
