@@ -1,0 +1,12 @@
+actor handler 0 =
+    RECV arg {arg 2 *};
+
+handler <- RECV 50;
+show handler;
+
+actor peer 0 =
+  RECV arg {arg arg *};
+
+peer <- RECV 50;
+show peer;
+

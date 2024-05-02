@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/lukasjoc/act/internal/lex"
 	"github.com/lukasjoc/act/internal/parse"
 )
 
@@ -38,13 +37,24 @@ func (e *Env) Exec() error {
 							id, s.Ident.Value, len(action.Params))
 						return
 					}
-					for pos, ident := range action.Params {
-						// locals[ident.Value] = params[pos]
-						action.Body[pos].Typ = lex.TokenTypeLit
-						action.Body[pos].Value = strconv.Itoa(params[pos])
-						fmt.Printf("LOCAL: %v=%v\n", ident.Value, params[pos])
+					locals := map[string]int{}
+					for pos, p := range action.Params {
+						locals[p.Value] = params[pos]
 					}
-					ctx := newEvalCtx(action.Body, (*a).state)
+					fmt.Printf("LOCALS: %#v\n", locals)
+					// for pos, ident := range action.Params {
+					// 	// locals[ident.Value] = params[pos]
+					// 	action.Body[pos].Typ = lex.TokenTypeLit
+					// 	action.Body[pos].Value = strconv.Itoa(params[pos])
+					// }
+					// for _, t := range action.Body {
+					// 	if lv, ok := locals[t.Value]; ok {
+					// 		t.Typ = lex.TokenTypeLit
+					// 		t.Value = lv
+					// 		fmt.Printf("LOCAL: %v=%v\n", t.Value, lv)
+					// 	}
+					// }
+					ctx := newEvalCtx(action.Body, (*a).state, locals)
 					if err := ctx.eval(); err != nil {
 						fmt.Printf("EVAL ERROR: %v \n", err)
 						return

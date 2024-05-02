@@ -12,6 +12,7 @@ type evalCtx struct {
 	stack  []int
 	state  int
 	tokens []*lex.Token
+	locals map[string]int
 }
 
 // FIXME: later lex, parse these directly into the tokenstream
@@ -64,8 +65,8 @@ func opTypeFromStr(opStr string) opType {
 	return opTypeInvalid
 }
 
-func newEvalCtx(tokens []*lex.Token, state int) *evalCtx {
-	return &evalCtx{[]int{}, state, tokens}
+func newEvalCtx(tokens []*lex.Token, state int, locals map[string]int) *evalCtx {
+	return &evalCtx{[]int{}, state, tokens, locals}
 }
 func (ctx *evalCtx) push(value int) { ctx.stack = append(ctx.stack, value) }
 func (ctx *evalCtx) pop(typ opType) ([]int, error) {
@@ -109,13 +110,19 @@ func (ctx *evalCtx) applyOp(typ opType, popped []int) error {
 func (ctx *evalCtx) eval() error {
 	for _, t := range ctx.tokens {
 		switch t.Typ {
+		case lex.TokenTypeIdent:
+			lv, ok := ctx.locals[t.Value]
+			if !ok {
+				return fmt.Errorf("undefined local `%v` for ctx", t.Value)
+			}
+			ctx.push(lv)
 		case lex.TokenTypeLit:
 			value, err := strconv.Atoi(t.Value)
 			if err != nil {
 				return err
 			}
 			ctx.push(value)
-		case lex.TokenTypeOp, lex.TokenTypeIdent, lex.TokenTypeSymbol:
+		case lex.TokenTypeOp:
 			typ := opTypeFromStr(t.Value)
 			if typ == opTypeInvalid {
 				return fmt.Errorf("eval of symbol `%v` not allowed", t.Value)
