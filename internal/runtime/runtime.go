@@ -10,9 +10,14 @@ import (
 type Env struct {
 	module parse.Module
 	actors map[string]*actor
+	sched  *scheduler
 }
 
-func New(module parse.Module) *Env { return &Env{module, map[string]*actor{}} }
+func New(module parse.Module) *Env {
+	sched := newScheduler()
+	return &Env{module, map[string]*actor{}, sched}
+}
+
 func (e *Env) Exec() error {
 	for _, item := range e.module {
 		switch s := item.(type) {
@@ -41,7 +46,7 @@ func (e *Env) Exec() error {
 					for pos, p := range action.Params {
 						locals[p.Value] = params[pos]
 					}
-					ctx := newEvalCtx(action.Body, (*a).state, locals)
+					ctx := newEvalCtx(action.Scope, (*a).state, locals)
 					if err := ctx.eval(); err != nil {
 						fmt.Printf("EVAL ERROR: %v \n", err)
 						return
@@ -82,9 +87,22 @@ func (e *Env) Exec() error {
 			if err := a.Recv(messageId(s.Message.Value), params...); err != nil {
 				return err
 			}
+		case parse.SpawnStmt:
+			id := s.Scope[0].Value
+			a, defined := e.actors[id]
+			if !defined {
+				return fmt.Errorf("actor with name `%s` not defined yet", id)
+			}
+			p := e.sched.startProc(s.PidIdent.Value, a)
+			for i := 0; i < 10; i++ {
+				p.inbox <- Message{messageId(fmt.Sprintf("foobar-%d", i)), []string{"Hello, World!"}}
+			}
+			// p.errs <- errors.New("you should be dead by now")
 		default:
 			panic(fmt.Sprintf("item `%v` is not supported yet", item))
 		}
+
+		e.sched.wg.Wait()
 	}
 	return nil
 }

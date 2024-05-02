@@ -1,0 +1,8 @@
+actor counter 0 =
+  DEC {1 -=},
+  INC {1 +=};
+
+c = spawn {counter};
+# c1 = spawn {counter};
+
+# c << POW 50

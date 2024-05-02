@@ -122,7 +122,7 @@ func (ctx *evalCtx) eval() error {
 				return err
 			}
 			ctx.push(value)
-		case lex.TokenTypeOp:
+		case lex.TokenTypeOp, lex.TokenTypeSymbol:
 			typ := opTypeFromStr(t.Value)
 			if typ == opTypeInvalid {
 				return fmt.Errorf("eval of symbol `%v` not allowed", t.Value)

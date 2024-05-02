@@ -21,6 +21,9 @@ func debugPrintItems(module parse.Module) {
 			fmt.Printf("[SEND] %v %v %v\n", s.ActorIdent, s.Message, s.Args)
 		case parse.ShowStmt:
 			fmt.Printf("[SHOW] %v\n", s.ActorIdent)
+		case parse.SpawnStmt:
+			fmt.Printf("[SPAWN] %v %v\n", s.PidIdent, s.Scope)
+		default:
 		}
 	}
 }
