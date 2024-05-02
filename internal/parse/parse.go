@@ -16,13 +16,7 @@ const (
 	ModuleItemSend
 )
 
-type ModuleItem interface {
-	// FIXME: this can be used for type casting (i know its bad will cleanup later)
-	Type() ModuleItemType
-}
-
-// TODO: fix this later (maybe)
-type Module struct{ Items []ModuleItem }
+type Module struct{ Items []any }
 
 type actStatementAction struct {
 	Ident  *lex.Token
@@ -35,21 +29,15 @@ type ActorStmt struct {
 	Actions []*actStatementAction
 }
 
-func (a ActorStmt) Type() ModuleItemType { return ModuleItemActor }
-
 type SendStmt struct {
 	ActorIdent *lex.Token
 	Message    *lex.Token
 	Args       []*lex.Token
 }
 
-func (a SendStmt) Type() ModuleItemType { return ModuleItemSend }
-
 type ShowStmt struct {
 	ActorIdent *lex.Token
 }
-
-func (a ShowStmt) Type() ModuleItemType { return ModuleItemShow }
 
 // FIXME: cleanup to use tokenstream
 // FIXME: this must be the most horrible code 've ever written (this month)
@@ -91,7 +79,7 @@ func New(r *bufio.Reader) (*Module, error) {
 	if err != nil {
 		return nil, err
 	}
-	module := Module{Items: []ModuleItem{}}
+	module := Module{Items: []any{}}
 	for index := 0; index < len(tokens); {
 		token := tokens[index]
 		if token.Typ == lex.TokenTypeKeywordActor {

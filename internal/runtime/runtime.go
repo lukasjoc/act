@@ -16,9 +16,8 @@ type Env struct {
 func New(module *parse.Module) *Env { return &Env{module, map[string]*actor{}} }
 func (e *Env) Exec() error {
 	for _, item := range (e.module).Items {
-		switch item.Type() {
-		case parse.ModuleItemActor:
-			s := item.(parse.ActorStmt)
+        switch s := item.(type) {
+        case parse.ActorStmt:
 			state, err := strconv.Atoi(s.State.Value)
 			if err != nil {
 				return err
@@ -62,16 +61,14 @@ func (e *Env) Exec() error {
 			// for n, a := range e.actors {
 			// 	fmt.Printf("RUNTIME DUMP: ACTION %v [%v %v]\n", n, a.state, a.actions)
 			// }
-		case parse.ModuleItemShow:
-			s := item.(parse.ShowStmt)
+        case parse.ShowStmt:
 			id := s.ActorIdent.Value
 			a, defined := e.actors[id]
 			if !defined {
 				return fmt.Errorf("actor with name `%s` not defined yet", id)
 			}
 			a.Show()
-		case parse.ModuleItemSend:
-			s := item.(parse.SendStmt)
+        case parse.SendStmt:
 			id := s.ActorIdent.Value
 			a, defined := e.actors[id]
 			if !defined {
@@ -89,7 +86,7 @@ func (e *Env) Exec() error {
 				return err
 			}
 		default:
-			panic(fmt.Sprintf("item `%v` is not supported yet", item.Type()))
+			panic(fmt.Sprintf("item `%v` is not supported yet", item))
 		}
 	}
 	return nil

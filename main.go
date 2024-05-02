@@ -11,18 +11,15 @@ import (
 
 func debugPrintItems(module *parse.Module) {
 	for _, item := range (*module).Items {
-		switch item.Type() {
-		case parse.ModuleItemActor:
-			s := item.(parse.ActorStmt)
+		switch s := item.(type) {
+		case parse.ActorStmt:
 			fmt.Printf("[ACTOR] %v %v\n", s.Ident, s.State)
 			for _, action := range s.Actions {
 				fmt.Printf("  [ACTION] %v\n", action)
 			}
-		case parse.ModuleItemSend:
-			s := item.(parse.SendStmt)
+		case parse.SendStmt:
 			fmt.Printf("[SEND] %v %v %v\n", s.ActorIdent, s.Message, s.Args)
-		case parse.ModuleItemShow:
-			s := item.(parse.ShowStmt)
+		case parse.ShowStmt:
 			fmt.Printf("[SHOW] %v\n", s.ActorIdent)
 		}
 	}
