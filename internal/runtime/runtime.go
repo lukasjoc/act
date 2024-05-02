@@ -21,7 +21,7 @@ func (e *Env) Exec() error {
 			if err != nil {
 				return err
 			}
-			a := newActor(int(state))
+			a := newActor(s.Ident.Value, int(state))
 			for _, action := range s.Actions {
 				id := messageId(action.Ident.Value)
 				locals := []string{}
@@ -41,19 +41,6 @@ func (e *Env) Exec() error {
 					for pos, p := range action.Params {
 						locals[p.Value] = params[pos]
 					}
-					fmt.Printf("LOCALS: %#v\n", locals)
-					// for pos, ident := range action.Params {
-					// 	// locals[ident.Value] = params[pos]
-					// 	action.Body[pos].Typ = lex.TokenTypeLit
-					// 	action.Body[pos].Value = strconv.Itoa(params[pos])
-					// }
-					// for _, t := range action.Body {
-					// 	if lv, ok := locals[t.Value]; ok {
-					// 		t.Typ = lex.TokenTypeLit
-					// 		t.Value = lv
-					// 		fmt.Printf("LOCAL: %v=%v\n", t.Value, lv)
-					// 	}
-					// }
 					ctx := newEvalCtx(action.Body, (*a).state, locals)
 					if err := ctx.eval(); err != nil {
 						fmt.Printf("EVAL ERROR: %v \n", err)
@@ -62,15 +49,11 @@ func (e *Env) Exec() error {
 					(*a).state = ctx.state
 				})
 			}
-			// fmt.Println(s.Ident.Value, e.actors)
 			if _, defined := e.actors[s.Ident.Value]; defined {
 				return fmt.Errorf("actor with name `%s` is already defined", s.Ident.Value)
 			}
 			e.actors[s.Ident.Value] = a
 			fmt.Printf("NEW ACTOR: %v [%v %v]\n", s.Ident.Value, a.state, a.actions)
-			// for n, a := range e.actors {
-			// 	fmt.Printf("RUNTIME DUMP: ACTION %v [%v %v]\n", n, a.state, a.actions)
-			// }
 		case parse.ShowStmt:
 			id := s.ActorIdent.Value
 			a, defined := e.actors[id]
@@ -91,6 +74,10 @@ func (e *Env) Exec() error {
 					return err
 				}
 				params = append(params, v)
+			}
+			mId := messageId(s.Message.Value)
+			if _, ok := a.actions[mId]; !ok {
+				return fmt.Errorf("message `%v` for actor `%v` is not defined", mId, a.addr)
 			}
 			if err := a.Recv(messageId(s.Message.Value), params...); err != nil {
 				return err
