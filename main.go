@@ -9,8 +9,8 @@ import (
 	"github.com/lukasjoc/act/internal/runtime"
 )
 
-func debugPrintItems(module *parse.Module) {
-	for _, item := range (*module).Items {
+func debugPrintItems(module parse.Module) {
+	for _, item := range module {
 		switch s := item.(type) {
 		case parse.ActorStmt:
 			fmt.Printf("[ACTOR] %v %v\n", s.Ident, s.State)

@@ -7,16 +7,7 @@ import (
 	"github.com/lukasjoc/act/internal/lex"
 )
 
-//go:generate stringer -type=ModuleItemType
-type ModuleItemType int
-
-const (
-	ModuleItemActor ModuleItemType = iota
-	ModuleItemShow
-	ModuleItemSend
-)
-
-type Module struct{ Items []any }
+type Module []any
 
 type actStatementAction struct {
 	Ident  *lex.Token
@@ -58,7 +49,7 @@ func eatTokenAs(s string, tokens *[]*lex.Token, index *int) *lex.Token {
 	return prev
 }
 
-func eatAction(tokens *[]*lex.Token, index *int) *actStatementAction {
+func parseAction(tokens *[]*lex.Token, index *int) *actStatementAction {
 	ident := eatToken(tokens, index)
 	params := []*lex.Token{}
 	for (*tokens)[*index].Value != "{" {
@@ -74,13 +65,12 @@ func eatAction(tokens *[]*lex.Token, index *int) *actStatementAction {
 	eatTokenAs("}", tokens, index)
 	return &actStatementAction{ident, params, body}
 }
-func New(r *bufio.Reader) (*Module, error) {
+func New(r *bufio.Reader) (module Module, err error) {
 	tokens, err := lex.New(r)
 	if err != nil {
 		return nil, err
 	}
-	module := Module{Items: []any{}}
-	for index := 0; index < len(tokens); {
+    for index := 0; index < len(tokens); {
 		token := tokens[index]
 		if token.Typ == lex.TokenTypeKeywordActor {
 			eatTokenAs("actor", &tokens, &index)
@@ -89,7 +79,7 @@ func New(r *bufio.Reader) (*Module, error) {
 			eatTokenAs("=", &tokens, &index)
 			actions := []*actStatementAction{}
 			for {
-				a := eatAction(&tokens, &index)
+				a := parseAction(&tokens, &index)
 				actions = append(actions, a)
 				if tokens[index].Value != "," {
 					break
@@ -98,13 +88,13 @@ func New(r *bufio.Reader) (*Module, error) {
 			}
 			eatTokenAs(";", &tokens, &index)
 			item := ActorStmt{ident, state, actions}
-			module.Items = append(module.Items, item)
+			module = append(module, item)
 		} else if token.Typ == lex.TokenTypeKeywordShow {
 			eatTokenAs("show", &tokens, &index)
 			actorIdent := eatToken(&tokens, &index)
 			eatTokenAs(";", &tokens, &index)
 			item := ShowStmt{actorIdent}
-			module.Items = append(module.Items, item)
+			module = append(module, item)
 		} else if token.Typ == lex.TokenTypeIdent {
 			actorIdent := eatToken(&tokens, &index)
 			eatTokenAs("<-", &tokens, &index)
@@ -115,10 +105,10 @@ func New(r *bufio.Reader) (*Module, error) {
 			}
 			eatTokenAs(";", &tokens, &index)
 			item := SendStmt{actorIdent, message, params}
-			module.Items = append(module.Items, item)
+			module = append(module, item)
 		} else {
 			panic(fmt.Sprintf("PARSE: next token `%s` at index %d/%d` not allowed", token, index, len(tokens)))
 		}
 	}
-	return &module, nil
+	return module, nil
 }

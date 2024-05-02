@@ -9,15 +9,15 @@ import (
 )
 
 type Env struct {
-	module *parse.Module
+	module parse.Module
 	actors map[string]*actor
 }
 
-func New(module *parse.Module) *Env { return &Env{module, map[string]*actor{}} }
+func New(module parse.Module) *Env { return &Env{module, map[string]*actor{}} }
 func (e *Env) Exec() error {
-	for _, item := range (e.module).Items {
-        switch s := item.(type) {
-        case parse.ActorStmt:
+	for _, item := range e.module {
+		switch s := item.(type) {
+		case parse.ActorStmt:
 			state, err := strconv.Atoi(s.State.Value)
 			if err != nil {
 				return err
@@ -61,14 +61,14 @@ func (e *Env) Exec() error {
 			// for n, a := range e.actors {
 			// 	fmt.Printf("RUNTIME DUMP: ACTION %v [%v %v]\n", n, a.state, a.actions)
 			// }
-        case parse.ShowStmt:
+		case parse.ShowStmt:
 			id := s.ActorIdent.Value
 			a, defined := e.actors[id]
 			if !defined {
 				return fmt.Errorf("actor with name `%s` not defined yet", id)
 			}
 			a.Show()
-        case parse.SendStmt:
+		case parse.SendStmt:
 			id := s.ActorIdent.Value
 			a, defined := e.actors[id]
 			if !defined {
