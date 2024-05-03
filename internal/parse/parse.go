@@ -12,9 +12,10 @@ import (
 type Module []any
 
 type actStatementAction struct {
-	Ident  *lex.Token
-	Params []*lex.Token
-	Scope  []*lex.Token
+	Ident     *lex.Token
+	Params    []*lex.Token
+	Scope     []*lex.Token
+	ReturnPid *lex.Token
 }
 type ActorStmt struct {
 	Ident   *lex.Token
@@ -78,7 +79,12 @@ func parseAction(tokens *[]*lex.Token, index *int) *actStatementAction {
 		scope = append(scope, tok)
 	}
 	eatTokenAs("}", tokens, index)
-	return &actStatementAction{ident, params, scope}
+	var returnPid *lex.Token
+	if (*tokens)[*index].Value == "->" {
+		eatTokenAs("->", tokens, index)
+		returnPid = eatToken(tokens, index)
+	}
+	return &actStatementAction{ident, params, scope, returnPid}
 }
 
 func parseActor(tokens *[]*lex.Token, index *int) *ActorStmt {

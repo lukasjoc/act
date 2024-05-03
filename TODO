@@ -1,9 +1,6 @@
-- create new actors
-- decide what to do on certain messages
-- being able to store remote host addresses
-- benig able to address certain known hosts
-- concurrent operations
-- counter inital value should be a param in the spawn
+CC being able to store remote host addresses
+CC benig able to address certain known hosts
+CC counter inital value should be a param in the spawn
 ```
 actor counter inital =
   DEC {1 -=},
@@ -11,8 +8,14 @@ actor counter inital =
 spawn {counter 37};
 spawn {counter 138};
 ```
+
+- create new actors
+- decide what to do on certain messages
+```
 - default messages to set value for each actor
 ```act
 foobar <- SET 5;
 foobar <- SET 0;
 ```
+
+?? custom pre-emptive scheduler (from scratch in ANSI C) (CGO)

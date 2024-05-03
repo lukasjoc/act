@@ -17,26 +17,27 @@ type message struct {
 type actor struct {
 	name    string
 	state   int
-	actions map[messageId]func(*message)
+	actions map[messageId]func(*message) *pid
 }
 
 func newActor(name string, state int) *actor {
-	return &actor{name, state, map[messageId]func(*message){}}
+	return &actor{name, state, map[messageId]func(*message) *pid{}}
 }
 
-func (a *actor) setAction(id messageId, f func(*message)) {
+func (a *actor) setAction(id messageId, f func(*message) *pid) {
 	// TODO: figure out a way to move more stuff into this default impl
-	a.actions[id] = func(m *message) { f(m) }
+	a.actions[id] = f //  func(m *message) *pid { f(m); return nil }
 }
 
 func (a *actor) show() { fmt.Printf("ACTOR STATE %v(%v)\n", a.name, a.state) }
 
-type pid int
+type pid uint16
 
 type proc struct {
 	a     *actor
 	pid   pid
 	dirty bool
+	ok    chan bool
 	inbox chan *message
 }
 
@@ -45,8 +46,7 @@ func newProc(a *actor, pid pid) *proc {
 		a:     a,
 		pid:   pid,
 		inbox: make(chan *message, envCtxMessageLimit),
-		// TODO: add error sync channel to sync exiting process go routines with
-		// the outer world and have a ticker that cleans up stuck ones etc..
+		ok:    make(chan bool, 1),
 	}
 }
 
@@ -56,10 +56,14 @@ type scheduler struct {
 	wg        sync.WaitGroup
 	procs     map[string]*proc
 	pidsource uint16
+	// TODO: add error sync channel to sync exiting process go routines with
+	// the outer world and have a ticker that cleans up stuck ones etc..
 }
 
+const pid1 = 1
+
 func newScheduler() *scheduler {
-	return &scheduler{sync.WaitGroup{}, map[string]*proc{}, 1}
+	return &scheduler{sync.WaitGroup{}, map[string]*proc{}, pid1}
 }
 
 func (s *scheduler) proc(name string) (*proc, error) {
@@ -73,8 +77,34 @@ func (s *scheduler) nextPid() pid {
 	s.pidsource += 1
 	return pid(s.pidsource)
 }
+func (s *scheduler) startAtProc() {
+	s.procs["@"] = newProc(&actor{}, pid1)
+	s.wg.Add(1)
+	go func() {
+		defer s.destroy("@")
+		defer s.wg.Done()
+		p, err := s.proc("@")
+		if err != nil {
+			return
+		}
+		fmt.Printf("NEW PROC: PID:%v, actor:%v\n", p.pid, p.a.name)
+		p.ok <- true
+		for {
+			select {
+			case message := <-p.inbox:
+				p.dirty = true
+				fmt.Printf("Received: %v\n", message)
+			default:
+				if p.dirty {
+					return
+				}
+			}
+		}
+	}()
+}
 func (s *scheduler) destroy(name string) {
 	p := s.procs[name]
+	fmt.Printf("PROC[%v] DESTROY \n", p.pid)
 	close(p.inbox)
 	delete(s.procs, name)
 }
@@ -89,16 +119,20 @@ func (s *scheduler) startProc(name string, a *actor) {
 			return
 		}
 		fmt.Printf("NEW PROC: PID:%v, actor:%v\n", p.pid, p.a.name)
+		p.ok <- true
 		for {
 			select {
-			case message := <-p.inbox:
+			case m := <-p.inbox:
 				p.dirty = true
-				fmt.Printf("PROC[%v]: %v\n", p.pid, message)
-				f, ok := p.a.actions[messageId(message.id)]
+				fmt.Printf("PROC[%v]: %v\n", p.pid, m)
+				f, ok := p.a.actions[messageId(m.id)]
 				if !ok {
 					return
 				}
-				f(message)
+				if pid := f(m); pid != nil {
+					p, _ := s.proc("@")
+					p.recv(&message{m.id, []int{int(p.pid), int(*pid), p.a.state}})
+				}
 			default:
 				if p.dirty {
 					return
