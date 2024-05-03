@@ -3,7 +3,14 @@
 - being able to store remote host addresses
 - benig able to address certain known hosts
 - concurrent operations
-
+- counter inital value should be a param in the spawn
+```
+actor counter inital =
+  DEC {1 -=},
+  INC {1 -+};
+spawn {counter 37};
+spawn {counter 138};
+```
 - default messages to set value for each actor
 ```act
 foobar <- SET 5;

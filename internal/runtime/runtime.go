@@ -10,9 +10,14 @@ import (
 type Env struct {
 	module parse.Module
 	actors map[string]*actor
+	sched  *scheduler
 }
 
-func New(module parse.Module) *Env { return &Env{module, map[string]*actor{}} }
+func New(module parse.Module) *Env {
+	sched := newScheduler()
+	return &Env{module, map[string]*actor{}, sched}
+}
+
 func (e *Env) Exec() error {
 	for _, item := range e.module {
 		switch s := item.(type) {
@@ -24,24 +29,17 @@ func (e *Env) Exec() error {
 			a := newActor(s.Ident.Value, int(state))
 			for _, action := range s.Actions {
 				id := messageId(action.Ident.Value)
-				locals := []string{}
-				for _, t := range action.Params {
-					locals = append(locals, t.Value)
-				}
-				a.With(id, func(a *actor, id messageId, params []int) {
-					if a == nil {
-						return
-					}
-					if len(action.Params) != len(params) {
+				a.setAction(id, func(m *message) {
+					if len(action.Params) != len(m.args) {
 						fmt.Printf("ERROR: message `%s` in actor `%v` requires `%v` args\n",
 							id, s.Ident.Value, len(action.Params))
 						return
 					}
 					locals := map[string]int{}
 					for pos, p := range action.Params {
-						locals[p.Value] = params[pos]
+						locals[p.Value] = m.args[pos]
 					}
-					ctx := newEvalCtx(action.Body, (*a).state, locals)
+					ctx := newEvalCtx(action.Scope, (*a).state, locals)
 					if err := ctx.eval(); err != nil {
 						fmt.Printf("EVAL ERROR: %v \n", err)
 						return
@@ -60,31 +58,32 @@ func (e *Env) Exec() error {
 			if !defined {
 				return fmt.Errorf("actor with name `%s` not defined yet", id)
 			}
-			a.Show()
+			a.show()
 		case parse.SendStmt:
-			id := s.ActorIdent.Value
-			a, defined := e.actors[id]
-			if !defined {
-				return fmt.Errorf("actor with name `%s` not defined yet", id)
-			}
-			params := []int{}
+			args := []int{}
 			for _, t := range s.Args {
 				v, err := strconv.Atoi(t.Value)
 				if err != nil {
 					return err
 				}
-				params = append(params, v)
+				args = append(args, v)
 			}
-			mId := messageId(s.Message.Value)
-			if _, ok := a.actions[mId]; !ok {
-				return fmt.Errorf("message `%v` for actor `%v` is not defined", mId, a.addr)
-			}
-			if err := a.Recv(messageId(s.Message.Value), params...); err != nil {
+			p, err := e.sched.proc(s.ActorIdent.Value)
+			if err != nil {
 				return err
 			}
+			p.recv(&message{messageId(s.Message.Value), args})
+		case parse.SpawnStmt:
+			id := s.Scope[0].Value
+			a, defined := e.actors[id]
+			if !defined {
+				return fmt.Errorf("actor with name `%s` not defined yet", id)
+			}
+			e.sched.startProc(s.PidIdent.Value, a)
 		default:
 			panic(fmt.Sprintf("item `%v` is not supported yet", item))
 		}
 	}
+	e.sched.wg.Wait()
 	return nil
 }

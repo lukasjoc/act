@@ -72,7 +72,7 @@ func (ctx *evalCtx) push(value int) { ctx.stack = append(ctx.stack, value) }
 func (ctx *evalCtx) pop(typ opType) ([]int, error) {
 	c := ops[typ]
 	if len(ctx.stack) < int(c) {
-		return nil, fmt.Errorf("Need stack height of %d but stack height is %d", c, len(ctx.stack))
+		return nil, fmt.Errorf("need stack height of %d but stack height is %d", c, len(ctx.stack))
 	}
 	popped := ctx.stack[:c]
 	ctx.stack = ctx.stack[c:]
@@ -122,7 +122,7 @@ func (ctx *evalCtx) eval() error {
 				return err
 			}
 			ctx.push(value)
-		case lex.TokenTypeOp:
+		case lex.TokenTypeOp, lex.TokenTypeSymbol:
 			typ := opTypeFromStr(t.Value)
 			if typ == opTypeInvalid {
 				return fmt.Errorf("eval of symbol `%v` not allowed", t.Value)

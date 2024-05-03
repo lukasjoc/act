@@ -1,0 +1,12 @@
+actor counter 0 =
+  DEC {1 -=},
+  INC {1 +=};
+
+c = spawn {counter};  c <-INC;
+c1 = spawn {counter}; c1<-INC;
+c2 = spawn {counter}; c2<-INC;
+c3 = spawn {counter}; c3<-INC;
+c4 = spawn {counter}; c4<-INC;
+c5 = spawn {counter}; c5<-INC;
+c6 = spawn {counter}; c6<-INC;
+c7 = spawn {counter}; c7<-INC;
