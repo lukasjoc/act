@@ -50,6 +50,4 @@ func main() {
 		fmt.Fprintf(os.Stderr, "[ERROR RUNTIME]: %v\n", err)
 		os.Exit(1)
 	}
-
-	// env.Wait()
 }

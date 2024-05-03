@@ -141,7 +141,6 @@ func New(r *bufio.Reader) (module Module, err error) {
 		switch tokens[index].Typ {
 		case lex.TokenTypeKeywordActor:
 			actor := parseActor(&tokens, &index)
-			fmt.Println(actor)
 			module = append(module, *actor)
 		case lex.TokenTypeKeywordShow:
 			show := parseShow(&tokens, &index)

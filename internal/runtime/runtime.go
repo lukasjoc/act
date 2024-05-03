@@ -3,7 +3,6 @@ package runtime
 import (
 	"fmt"
 	"strconv"
-	"time"
 
 	"github.com/lukasjoc/act/internal/parse"
 )
@@ -12,17 +11,12 @@ type Env struct {
 	module parse.Module
 	actors map[string]*actor
 	sched  *scheduler
-	// links  map[string]*proc
 }
 
 func New(module parse.Module) *Env {
 	sched := newScheduler()
 	return &Env{module, map[string]*actor{}, sched}
 }
-
-// func (e *Env) Wait() {
-// 	e.sched.wg.Wait()
-// }
 
 func (e *Env) Exec() error {
 	for _, item := range e.module {
@@ -35,10 +29,6 @@ func (e *Env) Exec() error {
 			a := newActor(s.Ident.Value, int(state))
 			for _, action := range s.Actions {
 				id := messageId(action.Ident.Value)
-				locals := []string{}
-				for _, t := range action.Params {
-					locals = append(locals, t.Value)
-				}
 				a.setAction(id, func(m *message) {
 					if len(action.Params) != len(m.args) {
 						fmt.Printf("ERROR: message `%s` in actor `%v` requires `%v` args\n",
@@ -82,20 +72,18 @@ func (e *Env) Exec() error {
 			if err != nil {
 				return err
 			}
-			time.Sleep(time.Second * 4)
-			fmt.Println("PROC", p.pid)
-			p.recv(&message{s.Message.Value, args})
+			p.recv(&message{messageId(s.Message.Value), args})
 		case parse.SpawnStmt:
 			id := s.Scope[0].Value
 			a, defined := e.actors[id]
 			if !defined {
 				return fmt.Errorf("actor with name `%s` not defined yet", id)
 			}
-
 			e.sched.startProc(s.PidIdent.Value, a)
 		default:
 			panic(fmt.Sprintf("item `%v` is not supported yet", item))
 		}
 	}
+	e.sched.wg.Wait()
 	return nil
 }
