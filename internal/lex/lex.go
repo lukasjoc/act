@@ -102,7 +102,7 @@ func New(r *bufio.Reader) ([]*Token, error) {
 			}
 			tokens = append(tokens, &Token{TokenTypeLit, string(buf)})
 			offset += n
-		} else if buf[0] == '=' || buf[0] == '}' || buf[0] == '{' || buf[0] == ',' || buf[0] == ';' {
+		} else if buf[0] == '=' || buf[0] == '}' || buf[0] == '{' || buf[0] == ',' || buf[0] == ';' || buf[0] == '@' {
 			b, err := r.ReadByte()
 			if err != nil {
 				return tokens, err
@@ -110,7 +110,9 @@ func New(r *bufio.Reader) ([]*Token, error) {
 			tokens = append(tokens, &Token{TokenTypeSymbol, string(b)})
 			offset += 1
 		} else if buf[0] == '+' || buf[0] == '-' || buf[0] == '*' || buf[0] == '%' || buf[0] == '<' {
-			buf, n, err := eatWhile(r, func(b byte) bool { return b == '+' || b == '-' || b == '*' || b == '%' || b == '<' || b == '=' })
+			buf, n, err := eatWhile(r, func(b byte) bool {
+				return b == '+' || b == '-' || b == '*' || b == '%' || b == '<' || b == '>' || b == '='
+			})
 			if err != nil {
 				return tokens, err
 			}
