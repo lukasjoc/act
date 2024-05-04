@@ -1,12 +1,13 @@
-CC being able to store remote host addresses
-CC benig able to address certain known hosts
-CC counter inital value should be a param in the spawn
+- being able to store remote host addresses
+- benig able to address certain known hosts
+- counter inital value should be a param in the spawn
+ - would need to only create actors when they get spawned
+ - would need to refactor the actor creation a bit (but it makes sense)
+    why create it if its not used (yet)
 ```
-actor counter inital =
-  DEC {1 -=},
-  INC {1 -+};
-spawn {counter 37};
-spawn {counter 138};
+actor counter initial = DEC {1 -=}, INC {1 -+};
+c = spawn {counter 37};
+c1 = spawn {counter 138};
 ```
 
 - create new actors
