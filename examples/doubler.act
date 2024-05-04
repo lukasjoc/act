@@ -3,3 +3,7 @@ actor doubler 0 =
 
 d = spawn {doubler};
 d <- DOUBLE @ 10;
+
+d1 = spawn {doubler};
+d1 <- DOUBLE @ 230;
+

@@ -14,19 +14,20 @@ type message struct {
 	args []int
 }
 
+type actionFunc func(*message) int
 type actor struct {
 	name    string
 	state   int
-	actions map[messageId]func(*message) *pid
+	actions map[messageId]actionFunc
 }
 
 func newActor(name string, state int) *actor {
-	return &actor{name, state, map[messageId]func(*message) *pid{}}
+	return &actor{name, state, map[messageId]actionFunc{}}
 }
 
-func (a *actor) setAction(id messageId, f func(*message) *pid) {
+func (a *actor) setAction(id messageId, f actionFunc) {
 	// TODO: figure out a way to move more stuff into this default impl
-	a.actions[id] = f //  func(m *message) *pid { f(m); return nil }
+	a.actions[id] = f
 }
 
 func (a *actor) show() { fmt.Printf("ACTOR STATE %v(%v)\n", a.name, a.state) }
@@ -95,9 +96,6 @@ func (s *scheduler) startAtProc() {
 				p.dirty = true
 				fmt.Printf("Received: %v\n", message)
 			default:
-				if p.dirty {
-					return
-				}
 			}
 		}
 	}()
@@ -129,10 +127,11 @@ func (s *scheduler) startProc(name string, a *actor) {
 				if !ok {
 					return
 				}
-				if pid := f(m); pid != nil {
-					p, _ := s.proc("@")
-					p.recv(&message{m.id, []int{int(p.pid), int(*pid), p.a.state}})
+				if pid := f(m); pid > 0 {
+					fromProc, _ := s.proc("@")
+					fromProc.recv(&message{m.id, []int{int(p.pid), int(pid), p.a.state}})
 				}
+				return
 			default:
 				if p.dirty {
 					return

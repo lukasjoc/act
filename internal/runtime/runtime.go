@@ -33,25 +33,32 @@ func (e *Env) Exec() error {
 			for _, action := range s.Actions {
 				action := action
 				id := messageId(action.Ident.Value)
-				a.setAction(id, func(m *message) *pid {
+				a.setAction(id, func(m *message) int {
 					if len(action.Params) != len(m.args) {
 						fmt.Printf("ERROR: message `%s` in actor `%v` requires `%v` args\n",
 							id, s.Ident.Value, len(action.Params))
-						return nil
+						return 0
 					}
 					locals := map[string]int{}
 					for pos, param := range action.Params {
 						locals[param.Value] = m.args[pos]
 					}
-					// TODO: if pid not in locals then returnPid wrong etc.. --> fail
-					var returnPid = pid(locals[action.ReturnPid.Value])
+					var returnPid int
+					if action.ReturnPid != nil {
+						value, ok := locals[action.ReturnPid.Value]
+						if !ok {
+							fmt.Printf("ERROR: message `%s` in actor `%v` requires a from arg\n", id, s.Ident.Value)
+							return 0
+						}
+						returnPid = value
+					}
 					ctx := newEvalCtx(action.Scope, (*a).state, locals)
 					if err := ctx.eval(); err != nil {
 						fmt.Printf("EVAL ERROR: %v \n", err)
-						return nil
+						return 0
 					}
-					(*a).state = ctx.state
-					return &returnPid
+					a.state = ctx.state
+					return returnPid
 				})
 			}
 			if _, defined := e.actors[s.Ident.Value]; defined {

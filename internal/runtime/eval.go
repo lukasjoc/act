@@ -17,6 +17,8 @@ type evalCtx struct {
 
 // FIXME: later lex, parse these directly into the tokenstream
 // for now we'll have to string match them by hand
+
+//go:generate stringer -type=opType
 type opType int
 
 const (
