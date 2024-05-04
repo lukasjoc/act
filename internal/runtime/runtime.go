@@ -19,9 +19,8 @@ func New(module parse.Module) *Env {
 }
 
 func (e *Env) Exec() error {
-	e.sched.startAtProc()
-	p, _ := e.sched.proc("@")
-	<-p.ok
+	atProc := e.sched.startAtProc()
+	<-atProc.ok
 	for _, item := range e.module {
 		switch s := item.(type) {
 		case parse.ActorStmt:
@@ -33,7 +32,7 @@ func (e *Env) Exec() error {
 			for _, action := range s.Actions {
 				action := action
 				id := messageId(action.Ident.Value)
-				a.setAction(id, func(m *message) int {
+				a.setAction(id, func(m *message) (returnPid uint16) {
 					if len(action.Params) != len(m.args) {
 						fmt.Printf("ERROR: message `%s` in actor `%v` requires `%v` args\n",
 							id, s.Ident.Value, len(action.Params))
@@ -43,14 +42,13 @@ func (e *Env) Exec() error {
 					for pos, param := range action.Params {
 						locals[param.Value] = m.args[pos]
 					}
-					var returnPid int
 					if action.ReturnPid != nil {
-						value, ok := locals[action.ReturnPid.Value]
+						returnPidVal, ok := locals[action.ReturnPid.Value]
 						if !ok {
 							fmt.Printf("ERROR: message `%s` in actor `%v` requires a from arg\n", id, s.Ident.Value)
 							return 0
 						}
-						returnPid = value
+						returnPid = uint16(returnPidVal)
 					}
 					ctx := newEvalCtx(action.Scope, (*a).state, locals)
 					if err := ctx.eval(); err != nil {
@@ -74,7 +72,7 @@ func (e *Env) Exec() error {
 			}
 			a.show()
 		case parse.SendStmt:
-			p, err := e.sched.proc(s.ActorIdent.Value)
+			p, err := e.sched.procByName(s.ActorIdent.Value)
 			if err != nil {
 				return err
 			}
@@ -82,7 +80,7 @@ func (e *Env) Exec() error {
 			for _, t := range s.Args {
 				// FIXME: refer to self properly (currently @ refers to the `@` process)
 				if t.Value == "@" {
-					args = append(args, pid1)
+					args = append(args, int(pid1))
 					continue
 				}
 				v, err := strconv.Atoi(t.Value)

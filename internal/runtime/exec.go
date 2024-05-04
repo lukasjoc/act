@@ -1,7 +1,6 @@
 package runtime
 
 import (
-	"errors"
 	"fmt"
 	"sync"
 )
@@ -14,7 +13,7 @@ type message struct {
 	args []int
 }
 
-type actionFunc func(*message) int
+type actionFunc func(*message) uint16
 type actor struct {
 	name    string
 	state   int
@@ -32,22 +31,26 @@ func (a *actor) setAction(id messageId, f actionFunc) {
 
 func (a *actor) show() { fmt.Printf("ACTOR STATE %v(%v)\n", a.name, a.state) }
 
-type pid uint16
-
 type proc struct {
-	a     *actor
-	pid   pid
+	name string
+	pid  uint16
+
+	// TODO: move this to proper state handling
 	dirty bool
 	ok    chan bool
+
 	inbox chan *message
+	a     *actor
 }
 
-func newProc(a *actor, pid pid) *proc {
+func newProc(a *actor, name string, pid uint16) *proc {
 	return &proc{
-		a:     a,
-		pid:   pid,
-		inbox: make(chan *message, envCtxMessageLimit),
-		ok:    make(chan bool, 1),
+		name,
+		pid,
+		false,
+		make(chan bool, 1),
+		make(chan *message, envCtxMessageLimit),
+		a,
 	}
 }
 
@@ -55,39 +58,45 @@ func (p *proc) recv(m *message) { p.inbox <- m }
 
 type scheduler struct {
 	wg        sync.WaitGroup
-	procs     map[string]*proc
+	procs     map[uint16]*proc
 	pidsource uint16
 	// TODO: add error sync channel to sync exiting process go routines with
 	// the outer world and have a ticker that cleans up stuck ones etc..
 }
 
-const pid1 = 1
+const pid1 uint16 = 1
 
 func newScheduler() *scheduler {
-	return &scheduler{sync.WaitGroup{}, map[string]*proc{}, pid1}
+	return &scheduler{sync.WaitGroup{}, map[uint16]*proc{}, pid1}
 }
 
-func (s *scheduler) proc(name string) (*proc, error) {
-	p, ok := s.procs[name]
-	if !ok {
-		return nil, errors.New("noproc")
-	}
-	return p, nil
-}
-func (s *scheduler) nextPid() pid {
-	s.pidsource += 1
-	return pid(s.pidsource)
-}
-func (s *scheduler) startAtProc() {
-	s.procs["@"] = newProc(&actor{}, pid1)
-	s.wg.Add(1)
-	go func() {
-		defer s.destroy("@")
-		defer s.wg.Done()
-		p, err := s.proc("@")
-		if err != nil {
-			return
+func (s *scheduler) procByName(name string) (*proc, error) {
+	for _, p := range s.procs {
+		if p.name == name {
+			return p, nil
 		}
+	}
+	return nil, nil
+}
+func (s *scheduler) proc(pid uint16) (*proc, error) {
+	for _, p := range s.procs {
+		if p.pid == pid {
+			return p, nil
+		}
+	}
+	return nil, nil
+}
+func (s *scheduler) nextPid() uint16 {
+	s.pidsource += 1
+	return uint16(s.pidsource)
+}
+func (s *scheduler) startAtProc() *proc {
+	p := newProc(&actor{}, "@", pid1)
+	s.procs[pid1] = p
+	s.wg.Add(1)
+	go func(p *proc) {
+		defer s.destroy(pid1)
+		defer s.wg.Done()
 		fmt.Printf("NEW PROC: PID:%v, actor:%v\n", p.pid, p.a.name)
 		p.ok <- true
 		for {
@@ -96,26 +105,27 @@ func (s *scheduler) startAtProc() {
 				p.dirty = true
 				fmt.Printf("Received: %v\n", message)
 			default:
+				// TODO: find a good way to stop the initial process
+				// i was thinking to kill this at the end (manually)
 			}
 		}
-	}()
+	}(p)
+	return p
 }
-func (s *scheduler) destroy(name string) {
-	p := s.procs[name]
+func (s *scheduler) destroy(pid uint16) {
+	p := s.procs[pid]
 	fmt.Printf("PROC[%v] DESTROY \n", p.pid)
 	close(p.inbox)
-	delete(s.procs, name)
+	delete(s.procs, pid)
 }
 func (s *scheduler) startProc(name string, a *actor) {
-	s.procs[name] = newProc(a, s.nextPid())
+	pid := s.nextPid()
+	p := newProc(a, name, pid)
+	s.procs[pid] = p
 	s.wg.Add(1)
-	go func(name string) {
-		defer s.destroy(name)
+	go func(p *proc) {
+		defer s.destroy(pid)
 		defer s.wg.Done()
-		p, err := s.proc(name)
-		if err != nil {
-			return
-		}
 		fmt.Printf("NEW PROC: PID:%v, actor:%v\n", p.pid, p.a.name)
 		p.ok <- true
 		for {
@@ -127,9 +137,9 @@ func (s *scheduler) startProc(name string, a *actor) {
 				if !ok {
 					return
 				}
-				if pid := f(m); pid > 0 {
-					fromProc, _ := s.proc("@")
-					fromProc.recv(&message{m.id, []int{int(p.pid), int(pid), p.a.state}})
+				if returnPid := f(m); returnPid > 0 {
+					fromProc, _ := s.proc(returnPid)
+					fromProc.recv(&message{m.id, []int{int(p.pid), int(returnPid), p.a.state}})
 				}
 				return
 			default:
@@ -138,5 +148,5 @@ func (s *scheduler) startProc(name string, a *actor) {
 				}
 			}
 		}
-	}(name)
+	}(p)
 }
