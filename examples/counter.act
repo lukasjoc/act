@@ -1,0 +1,9 @@
+actor counter initial =
+  DEC from {1 -=} -> from,
+  INC from {1 +=} -> from;
+
+c = spawn {counter 100};
+c <- INC @;
+
+c1 = spawn {counter 100};
+c1 <- DEC @;

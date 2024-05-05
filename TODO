@@ -1,17 +1,9 @@
-- counter inital value should be a param in the spawn
- - would need to only create actors when they get spawned
- - would need to refactor the actor creation a bit (but it makes sense)
-```
-actor counter initial = DEC {1 -=}, INC {1 -+};
-c = spawn {counter 37};
-c1 = spawn {counter 138};
-```
-- refer to `@` properly (currently bidi comm is only allowed with the fake `@` proc)
-- pattern match with default case
-- better execution scope expr handling
 - actors also want to spawn new actors and communicate
-- lex and parse opTypes into the tokens instead of string matching them (badly)
-- flush() like in erlang
-- tokenstream for lexer and parsing infra
+- refer to `@` properly (currently bidi comm is only allowed with the fake `@` proc)
+- `flush` like in erlang
+- pattern match with default case
 
+?? better execution scope expr handling
+?? tokenstream for lexer and parsing infra
+?? lex and parse opTypes into the tokens instead of string matching them (badly)
 ?? custom pre-emptive scheduler (from scratch in ANSI C) (CGO)

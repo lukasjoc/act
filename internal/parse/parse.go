@@ -11,7 +11,7 @@ import (
 
 type Module []any
 
-type actStatementAction struct {
+type ActorActionStmt struct {
 	Ident     *lex.Token
 	Params    []*lex.Token
 	Scope     []*lex.Token
@@ -20,7 +20,7 @@ type actStatementAction struct {
 type ActorStmt struct {
 	Ident   *lex.Token
 	State   *lex.Token
-	Actions []*actStatementAction
+	Actions []*ActorActionStmt
 }
 
 type SendStmt struct {
@@ -61,7 +61,7 @@ func eatTokenAs(s string, tokens *[]*lex.Token, index *int) *lex.Token {
 	return prev
 }
 
-func parseAction(tokens *[]*lex.Token, index *int) *actStatementAction {
+func parseAction(tokens *[]*lex.Token, index *int) *ActorActionStmt {
 	ident := eatToken(tokens, index)
 	params := []*lex.Token{}
 	for *(*tokens)[*index].Value != "{" {
@@ -80,7 +80,7 @@ func parseAction(tokens *[]*lex.Token, index *int) *actStatementAction {
 		eatTokenAs("->", tokens, index)
 		returnPid = eatToken(tokens, index)
 	}
-	return &actStatementAction{ident, params, scope, returnPid}
+	return &ActorActionStmt{ident, params, scope, returnPid}
 }
 
 func parseActor(tokens *[]*lex.Token, index *int) *ActorStmt {
@@ -88,7 +88,7 @@ func parseActor(tokens *[]*lex.Token, index *int) *ActorStmt {
 	ident := eatToken(tokens, index)
 	state := eatToken(tokens, index)
 	eatTokenAs("=", tokens, index)
-	actions := []*actStatementAction{}
+	actions := []*ActorActionStmt{}
 	for {
 		a := parseAction(tokens, index)
 		actions = append(actions, a)

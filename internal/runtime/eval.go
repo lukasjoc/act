@@ -40,7 +40,7 @@ var opTypeSigCountMap = map[opType]uint8{
 	opTypeMult:   2,
 }
 
-var opValToTypeMap = map[string]opType{
+var opValTypeMap = map[string]opType{
 	"+=": opTypeAddEq,
 	"-=": opTypeSubEq,
 	"%=": opTypeModEq,
@@ -100,7 +100,7 @@ func (ctx *evalCtx) eval() error {
 		case lex.TokenTypeIdent:
 			lv, ok := ctx.locals[*t.Value]
 			if !ok {
-				return fmt.Errorf("undefined local `%v` for ctx", t.Value)
+				return fmt.Errorf("undefined local `%s` for ctx", *t.Value)
 			}
 			ctx.push(lv)
 		case lex.TokenTypeLit:
@@ -110,9 +110,9 @@ func (ctx *evalCtx) eval() error {
 			}
 			ctx.push(value)
 		case lex.TokenTypeOp, lex.TokenTypeSymbol:
-			typ, ok := opValToTypeMap[*t.Value]
+			typ, ok := opValTypeMap[*t.Value]
 			if !ok {
-				return fmt.Errorf("eval of symbol `%v` not allowed", t.Value)
+				return fmt.Errorf("eval of symbol `%s` not allowed", *t.Value)
 			}
 			if err := ctx.applyOp(typ); err != nil {
 				return err

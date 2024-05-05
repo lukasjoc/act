@@ -12,24 +12,6 @@ type message struct {
 	args []int
 }
 
-type actionFunc func(*message) uint16
-type actor struct {
-	name    string
-	state   int
-	actions map[messageId]actionFunc
-}
-
-func newActor(name string, state int) *actor {
-	return &actor{name, state, map[messageId]actionFunc{}}
-}
-
-func (a *actor) setAction(id messageId, f actionFunc) {
-	// TODO: figure out a way to move more stuff into this default impl
-	a.actions[id] = f
-}
-
-func (a *actor) show() { fmt.Printf("ACTOR STATE %v(%v)\n", a.name, a.state) }
-
 type proc struct {
 	name string
 	pid  uint16
@@ -136,10 +118,13 @@ func (s *scheduler) startProc(name string, a *actor) {
 				if !ok {
 					return
 				}
-				if returnPid := f(m); returnPid > 0 {
-					fromProc, _ := s.proc(returnPid)
-					resPackage := []int{int(p.pid), int(returnPid), p.a.state}
-					fromProc.recv(&message{m.id, resPackage})
+				if pid := f(m, p); pid > 0 {
+					fromProc, err := s.proc(pid)
+					if err != nil {
+						return
+					}
+					data := []int{int(p.pid), int(pid), p.a.state}
+					fromProc.recv(&message{m.id, data})
 				}
 				return
 			default:
