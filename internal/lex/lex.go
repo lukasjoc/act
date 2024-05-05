@@ -22,12 +22,11 @@ const (
 )
 
 type Token struct {
-	Typ TokenType
-	// TODO: use span isntead
-	Value string
+	Typ   TokenType
+	Value *string
 }
 
-func (t Token) String() string { return fmt.Sprintf("%v(`%s`)", t.Typ, t.Value) }
+func (t Token) String() string { return fmt.Sprintf("%v(`%s`)", t.Typ, *t.Value) }
 
 func dropWhile(r *bufio.Reader, pred func(b byte) bool) (int, error) {
 	n := 0
@@ -64,7 +63,6 @@ func eatWhile(r *bufio.Reader, pred func(b byte) bool) ([]byte, int, error) {
 	return buf, len(buf), nil
 }
 
-// TODO: cleanup (tokenstream)
 func New(r *bufio.Reader) ([]*Token, error) {
 	tokens := []*Token{}
 	offset := 0
@@ -93,21 +91,24 @@ func New(r *bufio.Reader) ([]*Token, error) {
 			if err != nil {
 				return tokens, err
 			}
-			tokens = append(tokens, &Token{TokenTypeIdent, string(buf)})
+			v := string(buf)
+			tokens = append(tokens, &Token{TokenTypeIdent, &v})
 			offset += n
 		} else if unicode.IsNumber(rune(buf[0])) {
 			buf, n, err := eatWhile(r, func(b byte) bool { return unicode.IsNumber(rune(b)) })
 			if err != nil {
 				return tokens, err
 			}
-			tokens = append(tokens, &Token{TokenTypeLit, string(buf)})
+			v := string(buf)
+			tokens = append(tokens, &Token{TokenTypeLit, &v})
 			offset += n
 		} else if buf[0] == '=' || buf[0] == '}' || buf[0] == '{' || buf[0] == ',' || buf[0] == ';' || buf[0] == '@' {
 			b, err := r.ReadByte()
 			if err != nil {
 				return tokens, err
 			}
-			tokens = append(tokens, &Token{TokenTypeSymbol, string(b)})
+			v := string(b)
+			tokens = append(tokens, &Token{TokenTypeSymbol, &v})
 			offset += 1
 		} else if buf[0] == '+' || buf[0] == '-' || buf[0] == '*' || buf[0] == '%' || buf[0] == '<' {
 			buf, n, err := eatWhile(r, func(b byte) bool {
@@ -116,7 +117,8 @@ func New(r *bufio.Reader) ([]*Token, error) {
 			if err != nil {
 				return tokens, err
 			}
-			tokens = append(tokens, &Token{TokenTypeOp, string(buf)})
+			v := string(buf)
+			tokens = append(tokens, &Token{TokenTypeOp, &v})
 			offset += n
 		} else {
 			panic(fmt.Sprintf("LEX: next token `%s` at offset: %d not allowed", string(buf[0]), offset))
@@ -126,10 +128,10 @@ func New(r *bufio.Reader) ([]*Token, error) {
 		if token.Typ != TokenTypeIdent {
 			continue
 		}
-		if token.Value == "actor" {
+		if *token.Value == "actor" {
 			token.Typ = TokenTypeKeywordActor
 		}
-		if token.Value == "show" {
+		if *token.Value == "show" {
 			token.Typ = TokenTypeKeywordShow
 		}
 	}

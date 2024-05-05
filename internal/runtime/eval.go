@@ -15,9 +15,6 @@ type evalCtx struct {
 	locals map[string]int
 }
 
-// FIXME: later lex, parse these directly into the tokenstream
-// for now we'll have to string match them by hand
-
 //go:generate stringer -type=opType
 type opType int
 
@@ -30,10 +27,9 @@ const (
 	opTypeMod
 	opTypeAdd
 	opTypeMult
-	opTypeInvalid
 )
 
-var ops = map[opType]uint8{
+var opTypeSigCountMap = map[opType]uint8{
 	opTypeAddEq:  1,
 	opTypeSubEq:  1,
 	opTypeModEq:  1,
@@ -44,27 +40,15 @@ var ops = map[opType]uint8{
 	opTypeMult:   2,
 }
 
-// TODO: it would be really cool if stringer could do this
-func opTypeFromStr(opStr string) opType {
-	switch opStr {
-	case "+=":
-		return opTypeAddEq
-	case "-=":
-		return opTypeSubEq
-	case "%=":
-		return opTypeModEq
-	case "*=":
-		return opTypeMultEq
-	case "=":
-		return opTypeAssign
-	case "%":
-		return opTypeMod
-	case "+":
-		return opTypeAdd
-	case "*":
-		return opTypeMult
-	}
-	return opTypeInvalid
+var opValToTypeMap = map[string]opType{
+	"+=": opTypeAddEq,
+	"-=": opTypeSubEq,
+	"%=": opTypeModEq,
+	"*=": opTypeMultEq,
+	"=":  opTypeAssign,
+	"%":  opTypeMod,
+	"+":  opTypeAdd,
+	"*":  opTypeMult,
 }
 
 func newEvalCtx(tokens []*lex.Token, state int, locals map[string]int) *evalCtx {
@@ -72,21 +56,22 @@ func newEvalCtx(tokens []*lex.Token, state int, locals map[string]int) *evalCtx 
 }
 func (ctx *evalCtx) push(value int) { ctx.stack = append(ctx.stack, value) }
 func (ctx *evalCtx) pop(typ opType) ([]int, error) {
-	c := ops[typ]
+	c := opTypeSigCountMap[typ]
 	if len(ctx.stack) < int(c) {
 		return nil, fmt.Errorf("need stack height of %d but stack height is %d", c, len(ctx.stack))
 	}
 	popped := ctx.stack[:c]
+	if int(opTypeSigCountMap[typ]) != len(popped) {
+		return nil, errors.New("not enough pop values for type")
+	}
 	ctx.stack = ctx.stack[c:]
 	return popped, nil
 }
 
-func (ctx *evalCtx) applyOp(typ opType, popped []int) error {
-	if typ == opTypeInvalid {
-		return errors.New("invalid op type for application")
-	}
-	if int(ops[typ]) != len(popped) {
-		return errors.New("not enough pop values for type")
+func (ctx *evalCtx) applyOp(typ opType) error {
+	popped, err := ctx.pop(typ)
+	if err != nil {
+		return err
 	}
 	switch typ {
 	case opTypeAddEq:
@@ -113,27 +98,23 @@ func (ctx *evalCtx) eval() error {
 	for _, t := range ctx.tokens {
 		switch t.Typ {
 		case lex.TokenTypeIdent:
-			lv, ok := ctx.locals[t.Value]
+			lv, ok := ctx.locals[*t.Value]
 			if !ok {
 				return fmt.Errorf("undefined local `%v` for ctx", t.Value)
 			}
 			ctx.push(lv)
 		case lex.TokenTypeLit:
-			value, err := strconv.Atoi(t.Value)
+			value, err := strconv.Atoi(*t.Value)
 			if err != nil {
 				return err
 			}
 			ctx.push(value)
 		case lex.TokenTypeOp, lex.TokenTypeSymbol:
-			typ := opTypeFromStr(t.Value)
-			if typ == opTypeInvalid {
+			typ, ok := opValToTypeMap[*t.Value]
+			if !ok {
 				return fmt.Errorf("eval of symbol `%v` not allowed", t.Value)
 			}
-			popped, err := ctx.pop(typ)
-			if err != nil {
-				return err
-			}
-			if err := ctx.applyOp(typ, popped); err != nil {
+			if err := ctx.applyOp(typ); err != nil {
 				return err
 			}
 		default:

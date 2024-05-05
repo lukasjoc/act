@@ -1,11 +1,10 @@
 package runtime
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 )
-
-const envCtxMessageLimit = 1024
 
 type messageId string
 type message struct {
@@ -49,7 +48,7 @@ func newProc(a *actor, name string, pid uint16) *proc {
 		pid,
 		false,
 		make(chan bool, 1),
-		make(chan *message, envCtxMessageLimit),
+		make(chan *message, 1),
 		a,
 	}
 }
@@ -64,10 +63,10 @@ type scheduler struct {
 	// the outer world and have a ticker that cleans up stuck ones etc..
 }
 
-const pid1 uint16 = 1
+const atPid uint16 = 1
 
 func newScheduler() *scheduler {
-	return &scheduler{sync.WaitGroup{}, map[uint16]*proc{}, pid1}
+	return &scheduler{sync.WaitGroup{}, map[uint16]*proc{}, atPid}
 }
 
 func (s *scheduler) procByName(name string) (*proc, error) {
@@ -76,7 +75,7 @@ func (s *scheduler) procByName(name string) (*proc, error) {
 			return p, nil
 		}
 	}
-	return nil, nil
+	return nil, errors.New("proc with name not found")
 }
 func (s *scheduler) proc(pid uint16) (*proc, error) {
 	for _, p := range s.procs {
@@ -84,18 +83,18 @@ func (s *scheduler) proc(pid uint16) (*proc, error) {
 			return p, nil
 		}
 	}
-	return nil, nil
+	return nil, errors.New("proc with pid not found")
 }
 func (s *scheduler) nextPid() uint16 {
 	s.pidsource += 1
 	return uint16(s.pidsource)
 }
 func (s *scheduler) startAtProc() *proc {
-	p := newProc(&actor{}, "@", pid1)
-	s.procs[pid1] = p
+	p := newProc(&actor{}, "@", atPid)
+	s.procs[atPid] = p
 	s.wg.Add(1)
 	go func(p *proc) {
-		defer s.destroy(pid1)
+		defer s.destroy(atPid)
 		defer s.wg.Done()
 		fmt.Printf("NEW PROC: PID:%v, actor:%v\n", p.pid, p.a.name)
 		p.ok <- true
@@ -139,7 +138,8 @@ func (s *scheduler) startProc(name string, a *actor) {
 				}
 				if returnPid := f(m); returnPid > 0 {
 					fromProc, _ := s.proc(returnPid)
-					fromProc.recv(&message{m.id, []int{int(p.pid), int(returnPid), p.a.state}})
+					resPackage := []int{int(p.pid), int(returnPid), p.a.state}
+					fromProc.recv(&message{m.id, resPackage})
 				}
 				return
 			default:

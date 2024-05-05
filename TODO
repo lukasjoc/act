@@ -1,22 +1,17 @@
-- being able to store remote host addresses
-- benig able to address certain known hosts
 - counter inital value should be a param in the spawn
  - would need to only create actors when they get spawned
  - would need to refactor the actor creation a bit (but it makes sense)
-    why create it if its not used (yet)
 ```
 actor counter initial = DEC {1 -=}, INC {1 -+};
 c = spawn {counter 37};
 c1 = spawn {counter 138};
 ```
-
-- create new actors
-- decide what to do on certain messages
-```
-- default messages to set value for each actor
-```act
-foobar <- SET 5;
-foobar <- SET 0;
-```
+- refer to `@` properly (currently bidi comm is only allowed with the fake `@` proc)
+- pattern match with default case
+- better execution scope expr handling
+- actors also want to spawn new actors and communicate
+- lex and parse opTypes into the tokens instead of string matching them (badly)
+- flush() like in erlang
+- tokenstream for lexer and parsing infra
 
 ?? custom pre-emptive scheduler (from scratch in ANSI C) (CGO)

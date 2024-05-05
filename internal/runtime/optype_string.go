@@ -16,12 +16,11 @@ func _() {
 	_ = x[opTypeMod-5]
 	_ = x[opTypeAdd-6]
 	_ = x[opTypeMult-7]
-	_ = x[opTypeInvalid-8]
 }
 
-const _opType_name = "opTypeAddEqopTypeSubEqopTypeModEqopTypeAssignopTypeMultEqopTypeModopTypeAddopTypeMultopTypeInvalid"
+const _opType_name = "opTypeAddEqopTypeSubEqopTypeModEqopTypeAssignopTypeMultEqopTypeModopTypeAddopTypeMult"
 
-var _opType_index = [...]uint8{0, 11, 22, 33, 45, 57, 66, 75, 85, 98}
+var _opType_index = [...]uint8{0, 11, 22, 33, 45, 57, 66, 75, 85}
 
 func (i opType) String() string {
 	if i < 0 || i >= opType(len(_opType_index)-1) {

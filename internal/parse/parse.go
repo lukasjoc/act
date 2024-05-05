@@ -24,13 +24,9 @@ type ActorStmt struct {
 }
 
 type SendStmt struct {
-	ActorIdent *lex.Token
-	Message    *lex.Token
-	Args       []*lex.Token
-}
-
-type ShowStmt struct {
-	ActorIdent *lex.Token
+	SendPid *lex.Token
+	Message *lex.Token
+	Args    []*lex.Token
 }
 
 type SpawnStmt struct {
@@ -57,7 +53,7 @@ func peekToken(tokens *[]*lex.Token, index *int) (*lex.Token, error) {
 
 func eatTokenAs(s string, tokens *[]*lex.Token, index *int) *lex.Token {
 	prev := (*tokens)[*index]
-	v := (*tokens)[*index].Value
+	v := *(*tokens)[*index].Value
 	if v != s {
 		panic(fmt.Errorf("expected `%v` but instead got `%v`", s, v))
 	}
@@ -68,19 +64,19 @@ func eatTokenAs(s string, tokens *[]*lex.Token, index *int) *lex.Token {
 func parseAction(tokens *[]*lex.Token, index *int) *actStatementAction {
 	ident := eatToken(tokens, index)
 	params := []*lex.Token{}
-	for (*tokens)[*index].Value != "{" {
+	for *(*tokens)[*index].Value != "{" {
 		param := eatToken(tokens, index)
 		params = append(params, param)
 	}
 	eatTokenAs("{", tokens, index)
 	scope := []*lex.Token{}
-	for (*tokens)[*index].Value != "}" {
+	for *(*tokens)[*index].Value != "}" {
 		tok := eatToken(tokens, index)
 		scope = append(scope, tok)
 	}
 	eatTokenAs("}", tokens, index)
 	var returnPid *lex.Token
-	if (*tokens)[*index].Value == "->" {
+	if *(*tokens)[*index].Value == "->" {
 		eatTokenAs("->", tokens, index)
 		returnPid = eatToken(tokens, index)
 	}
@@ -96,7 +92,7 @@ func parseActor(tokens *[]*lex.Token, index *int) *ActorStmt {
 	for {
 		a := parseAction(tokens, index)
 		actions = append(actions, a)
-		if (*tokens)[*index].Value != "," {
+		if *(*tokens)[*index].Value != "," {
 			break
 		}
 		eatTokenAs(",", tokens, index)
@@ -105,19 +101,12 @@ func parseActor(tokens *[]*lex.Token, index *int) *ActorStmt {
 	return &ActorStmt{ident, state, actions}
 }
 
-func parseShow(tokens *[]*lex.Token, index *int) *ShowStmt {
-	eatTokenAs("show", tokens, index)
-	actorIdent := eatToken(tokens, index)
-	eatTokenAs(";", tokens, index)
-	return &ShowStmt{actorIdent}
-}
-
 func parseSend(tokens *[]*lex.Token, index *int) *SendStmt {
 	actorIdent := eatToken(tokens, index)
 	eatTokenAs("<-", tokens, index)
 	message := eatToken(tokens, index)
 	params := []*lex.Token{}
-	for (*tokens)[*index].Value != ";" {
+	for *(*tokens)[*index].Value != ";" {
 		params = append(params, eatToken(tokens, index))
 	}
 	eatTokenAs(";", tokens, index)
@@ -130,7 +119,7 @@ func parseSpawn(tokens *[]*lex.Token, index *int) *SpawnStmt {
 	eatTokenAs("spawn", tokens, index)
 	eatTokenAs("{", tokens, index)
 	scope := []*lex.Token{}
-	for (*tokens)[*index].Value != "}" {
+	for *(*tokens)[*index].Value != "}" {
 		tok := eatToken(tokens, index)
 		scope = append(scope, tok)
 	}
@@ -148,18 +137,15 @@ func New(r *bufio.Reader) (module Module, err error) {
 		case lex.TokenTypeKeywordActor:
 			actor := parseActor(&tokens, &index)
 			module = append(module, *actor)
-		case lex.TokenTypeKeywordShow:
-			show := parseShow(&tokens, &index)
-			module = append(module, *show)
 		case lex.TokenTypeIdent:
 			p, err := peekToken(&tokens, &index)
 			if err != nil && errors.Is(err, io.EOF) {
 				return module, nil
 			}
-			if p.Value == "<-" {
+			if *p.Value == "<-" {
 				send := parseSend(&tokens, &index)
 				module = append(module, *send)
-			} else if p.Value == "=" {
+			} else if *p.Value == "=" {
 				spawn := parseSpawn(&tokens, &index)
 				module = append(module, *spawn)
 			}
